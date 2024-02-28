@@ -20,11 +20,12 @@
 #include <stdio.h>
 
 #include "main.h"
-#include "led.h"
 
 #if !defined(__SOFT_FP__) && defined(__ARM_FP)
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
 #endif
+
+
 
 void task1_handler(void);   //this is task 1
 void task2_handler(void);   //this is task 2
@@ -36,8 +37,8 @@ void init_systick_timer(uint32_t tick_hz);
 __attribute__((naked)) void init_sheduler_stack(uint32_t sched_top_of_stack);
 void init_task_stack(void);
 void enable_processor_faults(void);
-__attribute__((naked)) void switch_sp_to_psp(void);
 uint32_t get_psp_value(void);
+__attribute__((naked)) void switch_sp_to_psp(void);
 
 uint32_t psp_of_tasks[MAX_TASKS] = {T1_STACK_START, T2_STACK_START, T3_STACK_START, T4_STACK_START}; //program counters of tasks
 uint32_t task_handlers[MAX_TASKS];
@@ -48,7 +49,6 @@ int main(void)
 	enable_processor_faults();
 
     init_sheduler_stack(SCHED_STACK_START);
-
     task_handlers[0] = (uint32_t) task1_handler;
     task_handlers[1] = (uint32_t) task2_handler;
     task_handlers[2] = (uint32_t) task3_handler;
@@ -57,8 +57,6 @@ int main(void)
     init_task_stack();
 
     init_systick_timer(TICK_HZ);
-
-    led_init_all();
 
     switch_sp_to_psp();
 
@@ -71,10 +69,7 @@ void task1_handler(void)
 {
 	while(1)
 	{
-		led_on(LED_GREEN);
-		delay(DELAY_COUNT_1S);
-		led_off(LED_GREEN);
-		delay(DELAY_COUNT_1S);
+		printf("This is task 1 \n");
 	}
 }
 
@@ -82,10 +77,7 @@ void task2_handler(void)
 {
 	while(1)
 	{
-		led_on(LED_ORANGE);
-		delay(DELAY_COUNT_500MS);
-		led_off(LED_ORANGE);
-		delay(DELAY_COUNT_500MS);
+		printf("This is task 2 \n");
 	}
 }
 
@@ -93,10 +85,7 @@ void task3_handler(void)
 {
 	while(1)
 	{
-		led_on(LED_BLUE);
-		delay(DELAY_COUNT_250MS);
-		led_off(LED_BLUE);
-		delay(DELAY_COUNT_250MS);
+		printf("This is task 3 \n");
 	}
 }
 
@@ -104,10 +93,7 @@ void task4_handler(void)
 {
 	while(1)
 	{
-		led_on(LED_RED);
-		delay(DELAY_COUNT_125MS);
-		led_off(LED_RED);
-		delay(DELAY_COUNT_125MS);
+		printf("This is task 4 \n");
 	}
 }
 
@@ -199,12 +185,12 @@ __attribute__((naked)) void switch_sp_to_psp(void)
 	// get the value of psp of current task
 	__asm volatile ("PUSH {LR}"); // preserve LR which connects back to main()
 	__asm volatile ("BL get_psp_value");
-	__asm volatile ("MSR PSP,R0"); //initialize PSP
+	__asm volatile ("MSR PSP, R0"); //initialize PSP
 	__asm volatile ("POP {LR}"); //pops back LR value
 
 	//2. change SP to PSP using CONTROL register
-	__asm volatile ("MOV R0,#0X02");
-	__asm volatile ("MSR CONTROL,R0");
+	__asm volatile ("MOV R0, #0X02");
+	__asm volatile ("MSR CONTROL, R0");
 	__asm volatile ("BX LR");
 
 }

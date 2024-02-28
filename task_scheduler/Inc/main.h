@@ -15,7 +15,7 @@
 #define SIZE_SCHED_STACK	1024U
 
 #define SRAM_START			0x20000000U	//start of memory address, taken from datasheet
-#define SIZE_SRAM			( (128) * (1024)) //size of RAM sections (128kB)
+#define SIZE_SRAM			((128) * (1024)) //size of RAM sections (128kB)
 #define SRAM_END			((SRAM_START) + (SIZE_SRAM))
 
 #define T1_STACK_START		SRAM_END //address of first task stack
@@ -25,11 +25,11 @@
 
 #define SCHED_STACK_START	((SRAM_END) - (4 * SIZE_TASK_STACK))  //address of scheduler stack
 
-#define TICK_HZ 1000
+#define TICK_HZ 1000U
 
 #define HSI_CLK				16000000U
 #define SYSTICK_TIM_CLK		HSI_CLK
 
-#define DUMMY_XPSR 0x00100000U
+#define DUMMY_XPSR 0x01000000U
 
 #endif /* MAIN_H_ */
