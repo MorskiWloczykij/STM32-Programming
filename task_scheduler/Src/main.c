@@ -34,19 +34,17 @@ void task4_handler(void);   //this is task 4
 void init_systick_timer(uint32_t tick_hz);
 /*function without ASM prologue and epilogue; use only with ASM instructions */
 __attribute__((naked)) void init_sheduler_stack(uint32_t sched_top_of_stack);
-void init_task_stack(void);
+void init_tasks_stack(void);
 void enable_processor_faults(void);
 __attribute__((naked)) void switch_sp_to_psp(void);
 uint32_t get_psp_value(void);
 
 void task_delay(uint32_t tick_count);
 
-uint32_t psp_of_tasks[MAX_TASKS] = {T1_STACK_START, T2_STACK_START, T3_STACK_START, T4_STACK_START}; //program counters of tasks
-uint32_t task_handlers[MAX_TASKS];
-uint8_t current_task = 0; //task1 is running
+uint8_t current_task = 1; //task1 is running
 uint32_t g_tick_count = 0;
 
-typedef struct 
+typedef struct
 {
 	uint32_t psp_value;
 	uint32_t block_count;
@@ -62,11 +60,11 @@ int main(void)
 
     init_sheduler_stack(SCHED_STACK_START);
 
-    init_task_stack();
-
-    init_systick_timer(TICK_HZ);
+    init_tasks_stack();
 
     led_init_all();
+
+    init_systick_timer(TICK_HZ);
 
     switch_sp_to_psp();
 
@@ -86,9 +84,9 @@ void task1_handler(void)
 	while(1)
 	{
 		led_on(LED_GREEN);
-		delay(DELAY_COUNT_1S);
+		task_delay(1000);
 		led_off(LED_GREEN);
-		delay(DELAY_COUNT_1S);
+		task_delay(1000);
 	}
 }
 
@@ -97,9 +95,9 @@ void task2_handler(void)
 	while(1)
 	{
 		led_on(LED_ORANGE);
-		delay(DELAY_COUNT_500MS);
+		task_delay(500);
 		led_off(LED_ORANGE);
-		delay(DELAY_COUNT_500MS);
+		task_delay(500);
 	}
 }
 
@@ -108,9 +106,9 @@ void task3_handler(void)
 	while(1)
 	{
 		led_on(LED_BLUE);
-		delay(DELAY_COUNT_250MS);
+		task_delay(250);
 		led_off(LED_BLUE);
-		delay(DELAY_COUNT_250MS);
+		task_delay(250);
 	}
 }
 
@@ -119,9 +117,9 @@ void task4_handler(void)
 	while(1)
 	{
 		led_on(LED_RED);
-		delay(DELAY_COUNT_125MS);
+		task_delay(125);
 		led_off(LED_RED);
-		delay(DELAY_COUNT_125MS);
+		task_delay(125);
 	}
 }
 
@@ -154,33 +152,33 @@ __attribute__((naked)) void init_sheduler_stack(uint32_t sched_top_of_stack)
 
 
 
-void init_task_stack(void)
+void init_tasks_stack(void)
 {
 	user_tasks[0].current_state = TASK_READY_STATE;
 	user_tasks[1].current_state = TASK_READY_STATE;
 	user_tasks[2].current_state = TASK_READY_STATE;
 	user_tasks[3].current_state = TASK_READY_STATE;
 	user_tasks[4].current_state = TASK_READY_STATE;
-	
+
 	user_tasks[0].psp_value = IDLE_STACK_START;
 	user_tasks[1].psp_value = T1_STACK_START;
 	user_tasks[2].psp_value = T2_STACK_START;
 	user_tasks[3].psp_value = T3_STACK_START;
 	user_tasks[4].psp_value = T4_STACK_START;
-	
+
 	user_tasks[0].task_handler = idle_task;
 	user_tasks[1].task_handler = task1_handler;
 	user_tasks[2].task_handler = task2_handler;
 	user_tasks[3].task_handler = task3_handler;
 	user_tasks[4].task_handler = task4_handler;
-	
+
 	uint32_t *pPSP;
 
 	for(int i=0; i< MAX_TASKS; i++)
 	{
 		pPSP = (uint32_t*) user_tasks[i].psp_value;
 		pPSP--;
-		*pPSP = DUMMY_XPSR; // 0x00100000; value from datasheet; T bit always 1
+		*pPSP = DUMMY_XPSR; // 0x01000000; value from datasheet; T bit always 1
 
 		//PC
 		pPSP--;
@@ -223,8 +221,21 @@ void save_psp_value(uint32_t current_psp_value)
 
 void update_next_task(void)
 {
-	current_task++;
-	current_task %= MAX_TASKS; //clever module operand to check if crossed MAX_TASKS
+	int state = TASK_BLOCKED_STATE;
+
+	for(int i=0; i<(MAX_TASKS); i++)
+	{
+		current_task++;
+		current_task %= MAX_TASKS; //clever module operand to check if crossed MAX_TASKS
+		state = user_tasks[current_task].current_state;
+		if( (state == TASK_READY_STATE)&&(current_task !=0))
+			break;
+	}
+
+	if(state != TASK_READY_STATE)
+		current_task = 0;
+
+
 }
 
 __attribute__((naked)) void switch_sp_to_psp(void)
@@ -250,14 +261,22 @@ void schedule(void)
 
 }
 
+
+
+
 void task_delay(uint32_t tick_count)
 {
+
+	//disable interrupts
+	INTERRUPT_DISABLE();
 	if(current_task)
 	{
 		user_tasks[current_task].block_count = g_tick_count + tick_count; //global tick count
 		user_tasks[current_task].current_state = TASK_BLOCKED_STATE;
 		schedule();
 	}
+	//enable interrupts
+	INTERRUPT_ENABLE();
 }
 
 
@@ -309,7 +328,7 @@ void unblock_tasks()
 	}
 }
 
-__attribute__((naked)) void SysTick_Handler(void)
+void SysTick_Handler(void)
 {
 
 	uint32_t *pICSR = (uint32_t*) 0xE000ED04;
